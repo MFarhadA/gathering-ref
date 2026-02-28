@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { LogOut, Menu, X, ImageIcon } from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function Navbar() {
     const [user, setUser] = useState<User | null>(null);
@@ -46,8 +47,8 @@ export default function Navbar() {
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2.5 group">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-bg transition-transform duration-200 group-hover:scale-110">
-                            <ImageIcon size={18} strokeWidth={2.5} />
+                        <div className="flex h-9 w-9 items-center justify-center transition-transform duration-200 group-hover:scale-110">
+                            <Image src="/gatheringref-icon.svg" alt="GatheringRef Logo" width={26} height={26} />
                         </div>
                         <span className="text-lg font-bold tracking-tight">GatheringRef</span>
                     </Link>

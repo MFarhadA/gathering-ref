@@ -2,6 +2,7 @@ import Link from "next/link";
 import Navbar from "./components/Navbar";
 import { ImageIcon, Lock, Globe, Share2, Zap, Shield, Layers } from "lucide-react";
 import type { Metadata } from "next";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "GatheringRef — Collect & Share Image References",
@@ -26,14 +27,6 @@ export default function HomePage() {
           <div className="absolute top-40 left-1/4 w-[300px] h-[300px] bg-white/1.5 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative max-w-4xl mx-auto text-center">
-            {/* Badge */}
-            <div className="animate-slide-up stagger-1 inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border-light bg-surface/50 mb-8">
-              <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-              <span className="text-xl font-bold">GatheringRef</span>
-              <span className="text-xs font-medium text-text-secondary tracking-wide uppercase">
-                Your Visual Reference Library
-              </span>
-            </div>
 
             {/* Heading */}
             <h1 className="animate-slide-up stagger-2 text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] mb-6">
@@ -193,8 +186,8 @@ export default function HomePage() {
         <footer className="py-8 px-4 border-t border-border">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-md bg-accent text-bg flex items-center justify-center">
-                <ImageIcon size={14} strokeWidth={2.5} />
+              <div className="flex items-center justify-center">
+                <Image src="/gatheringref-icon.svg" alt="GatheringRef Logo" width={20} height={20} />
               </div>
               <span className="font-semibold text-sm">GatheringRef</span>
             </div>

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, Eye, EyeOff, ImageIcon } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
 
 export default function RegisterPage() {
     const [email, setEmail] = useState("");
@@ -95,8 +96,8 @@ export default function RegisterPage() {
                 {/* Logo */}
                 <div className="text-center mb-8 animate-slide-up stagger-1">
                     <Link href="/" className="inline-flex items-center gap-2.5 mb-6">
-                        <div className="w-10 h-10 rounded-lg bg-accent text-bg flex items-center justify-center">
-                            <ImageIcon size={20} strokeWidth={2.5} />
+                        <div className="flex items-center justify-center">
+                            <Image src="/gatheringref-icon.svg" alt="GatheringRef Logo" width={36} height={36} />
                         </div>
                         <span className="text-xl font-bold">GatheringRef</span>
                     </Link>
@@ -135,7 +136,7 @@ export default function RegisterPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="Email address"
-                            className="input-field pl-12"
+                            className="input-field pl-10"
                             required
                         />
                     </div>
@@ -147,7 +148,7 @@ export default function RegisterPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Password (min 6 characters)"
-                            className="input-field pl-12 pr-12"
+                            className="input-field pl-10 pr-10"
                             required
                             minLength={6}
                         />
@@ -167,7 +168,7 @@ export default function RegisterPage() {
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="Confirm password"
-                            className="input-field pl-12 pr-12"
+                            className="input-field pl-10 pr-10"
                             required
                         />
                         <button
