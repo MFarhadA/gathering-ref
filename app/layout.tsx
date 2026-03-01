@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     "image collection",
     "design references",
   ],
-  authors: [{ name: "GatheringRef" }],
+  authors: [{ name: "MFarhadA" }],
   openGraph: {
     title: "GatheringRef — Image Reference Gallery",
     description:
