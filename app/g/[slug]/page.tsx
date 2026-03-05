@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import ImageGrid from "../../components/ImageGrid";
 import Navbar from "../../components/Navbar";
-import { Globe, ImageIcon } from "lucide-react";
+import { Globe, ImageIcon, User } from "lucide-react";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -54,6 +54,13 @@ export default async function PublicGalleryPage({ params }: Props) {
         notFound();
     }
 
+    // Fetch author profile
+    const { data: authorProfile } = await supabase
+        .from("profiles")
+        .select("nickname, avatar_url")
+        .eq("id", gallery.user_id)
+        .single();
+
     // Fetch images
     const { data: images } = await supabase
         .from("images")
@@ -67,6 +74,15 @@ export default async function PublicGalleryPage({ params }: Props) {
             .getPublicUrl(img.file_path);
         return { ...img, url: urlData.publicUrl };
     });
+
+    // Author avatar helper
+    const authorNickname = authorProfile?.nickname ?? "Unknown";
+    const authorInitials = authorNickname
+        .split(/[_\s]/)
+        .map((w: string) => w[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
 
     return (
         <>
@@ -83,6 +99,25 @@ export default async function PublicGalleryPage({ params }: Props) {
                         {gallery.description && (
                             <p className="text-text-muted max-w-xl mx-auto">{gallery.description}</p>
                         )}
+
+                        {/* Author info */}
+                        <div className="flex items-center justify-center gap-2 mt-4">
+                            {authorProfile?.avatar_url ? (
+                                <img
+                                    src={authorProfile.avatar_url}
+                                    alt={authorNickname}
+                                    className="w-7 h-7 rounded-full object-cover"
+                                />
+                            ) : (
+                                <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center text-[10px] font-bold text-accent">
+                                    {authorInitials || <User size={12} />}
+                                </div>
+                            )}
+                            <span className="text-sm text-text-muted">
+                                by <span className="text-text-secondary font-medium">{authorNickname}</span>
+                            </span>
+                        </div>
+
                         <p className="text-xs text-text-muted mt-3">
                             {imagesWithUrls.length} image{imagesWithUrls.length !== 1 ? "s" : ""}
                         </p>

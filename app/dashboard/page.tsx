@@ -17,8 +17,14 @@ interface Gallery {
     cover_url?: string | null;
 }
 
+interface Profile {
+    nickname: string;
+    avatar_url: string | null;
+}
+
 export default function DashboardPage() {
     const [galleries, setGalleries] = useState<Gallery[]>([]);
+    const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -36,8 +42,21 @@ export default function DashboardPage() {
         }
     };
 
+    const fetchProfile = async () => {
+        try {
+            const res = await fetch("/api/profile");
+            if (res.ok) {
+                const data = await res.json();
+                setProfile(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch profile:", err);
+        }
+    };
+
     useEffect(() => {
         fetchGalleries();
+        fetchProfile();
     }, []);
 
     const handleDelete = async (id: string) => {
@@ -63,6 +82,13 @@ export default function DashboardPage() {
                     {/* Header */}
                     <div className="flex items-center justify-between mb-8 animate-fade-in">
                         <div>
+                            <p className="text-sm text-text-muted mb-0.5">
+                                {profile ? (
+                                    <>Hi, <span className="text-text-secondary font-medium">{profile.nickname}</span> 👋</>
+                                ) : (
+                                    <span className="inline-block w-24 h-4 bg-surface animate-pulse rounded" />
+                                )}
+                            </p>
                             <h1 className="text-2xl sm:text-3xl font-bold">My Galleries</h1>
                             <p className="text-sm text-text-muted mt-1">
                                 {galleries.length} {galleries.length === 1 ? "gallery" : "galleries"}

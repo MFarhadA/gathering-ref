@@ -35,7 +35,7 @@ export default function RegisterPage() {
 
         setLoading(true);
 
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
@@ -44,13 +44,31 @@ export default function RegisterPage() {
         });
 
         if (error) {
-            setError(error.message);
+            // Handle email already registered
+            if (
+                error.message.toLowerCase().includes("already registered") ||
+                error.message.toLowerCase().includes("already in use") ||
+                error.message.toLowerCase().includes("user already exists")
+            ) {
+                setError("Email ini sudah terdaftar. Silakan login atau gunakan email lain.");
+            } else {
+                setError(error.message);
+            }
+            setLoading(false);
+            return;
+        }
+
+        // Supabase returns identities: [] when email is already registered
+        // but email confirmation is disabled (no error thrown)
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+            setError("Email ini sudah terdaftar. Silakan login atau gunakan email lain.");
             setLoading(false);
             return;
         }
 
         setSuccess(true);
         setLoading(false);
+        router.refresh();
     };
 
     const handleGoogleLogin = async () => {

@@ -64,14 +64,90 @@ CREATE TABLE images (
 CREATE INDEX idx_images_gallery_id ON images(gallery_id);
 ```
 
-### 3.3 Enable Row Level Security (RLS)
+### 3.3 Buat Tabel `profiles`
+
+```sql
+CREATE TABLE profiles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  nickname TEXT NOT NULL,
+  avatar_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Index
+CREATE INDEX idx_profiles_id ON profiles(id);
+```
+
+### 3.4 Buat Trigger Otomatis — Profil Saat Registrasi
+
+Trigger ini akan otomatis membuat baris di tabel `profiles` dengan nickname acak setiap kali ada user baru yang mendaftar.
+
+```sql
+-- Fungsi untuk generate nickname acak
+CREATE OR REPLACE FUNCTION generate_random_nickname()
+RETURNS TEXT AS $$
+DECLARE
+  adjectives TEXT[] := ARRAY[
+    'swift','brave','calm','cool','dark','epic','fast','free',
+    'gold','gray','keen','kind','lone','mild','neat','nice',
+    'pure','rare','rich','safe','slim','soft','sure','true',
+    'warm','wild','wise','bold','cozy','cute','fair','firm',
+    'glad','good','high','huge','idle','iron','jade','just',
+    'lazy','lean','live','lost','loud','love','lucky','mellow'
+  ];
+  nouns TEXT[] := ARRAY[
+    'wolf','hawk','bear','lion','crow','deer','duck','eagle',
+    'fish','frog','goat','hare','kite','lark','mole','moth',
+    'newt','owl','puma','rook','seal','slug','swan','toad',
+    'vole','wasp','wren','bison','camel','crane','finch','gecko',
+    'heron','hyena','ibis','jackal','koala','lemur','llama','moose',
+    'panda','quail','raven','shark','snail','tiger','viper','zebra'
+  ];
+  adj TEXT;
+  noun TEXT;
+  suffix TEXT;
+BEGIN
+  adj  := adjectives[1 + floor(random() * array_length(adjectives, 1))::int];
+  noun := nouns[1 + floor(random() * array_length(nouns, 1))::int];
+  suffix := lpad(floor(random() * 9999)::text, 4, '0');
+  RETURN adj || '_' || noun || suffix;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger function
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, nickname)
+  VALUES (
+    NEW.id,
+    COALESCE(
+      NEW.raw_user_meta_data->>'full_name',
+      generate_random_nickname()
+    )
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Pasang trigger
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+```
+
+> **Catatan**: Jika user daftar via Google OAuth, nickname akan diambil dari `full_name` Google. Jika daftar via email biasa, nickname akan digenerate secara acak.
+
+### 3.5 Enable Row Level Security (RLS)
 
 ```sql
 -- Enable RLS
 ALTER TABLE galleries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE images ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Galleries: owner can do everything
+-- ===== GALLERIES =====
 CREATE POLICY "Users can view own galleries"
   ON galleries FOR SELECT
   USING (auth.uid() = user_id);
@@ -88,12 +164,12 @@ CREATE POLICY "Users can delete own galleries"
   ON galleries FOR DELETE
   USING (auth.uid() = user_id);
 
--- Galleries: anyone can view public galleries
+-- Anyone can view public galleries
 CREATE POLICY "Anyone can view public galleries"
   ON galleries FOR SELECT
   USING (is_public = true);
 
--- Images: owner can do everything
+-- ===== IMAGES =====
 CREATE POLICY "Users can view own images"
   ON images FOR SELECT
   USING (auth.uid() = user_id);
@@ -106,7 +182,7 @@ CREATE POLICY "Users can delete own images"
   ON images FOR DELETE
   USING (auth.uid() = user_id);
 
--- Images: anyone can view images in public galleries
+-- Anyone can view images in public galleries
 CREATE POLICY "Anyone can view images in public galleries"
   ON images FOR SELECT
   USING (
@@ -116,16 +192,33 @@ CREATE POLICY "Anyone can view images in public galleries"
       AND galleries.is_public = true
     )
   );
+
+-- ===== PROFILES =====
+-- Anyone can view profiles (for public gallery author display)
+CREATE POLICY "Profiles are viewable by everyone"
+  ON profiles FOR SELECT
+  USING (true);
+
+-- Users can update their own profile
+CREATE POLICY "Users can update own profile"
+  ON profiles FOR UPDATE
+  USING (auth.uid() = id);
+
+-- Trigger insert is handled by SECURITY DEFINER function (no INSERT policy needed for users)
 ```
 
-### 3.4 Buat Storage Bucket
+### 3.6 Buat Storage Buckets
 
 ```sql
--- Create storage bucket
+-- Bucket untuk gallery images
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('gallery-images', 'gallery-images', true);
 
--- Storage policies: owner can upload
+-- Bucket untuk avatars
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true);
+
+-- ===== GALLERY IMAGES POLICIES =====
 CREATE POLICY "Users can upload images"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -133,7 +226,6 @@ CREATE POLICY "Users can upload images"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Storage policies: owner can delete
 CREATE POLICY "Users can delete own images"
   ON storage.objects FOR DELETE
   USING (
@@ -141,10 +233,35 @@ CREATE POLICY "Users can delete own images"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Storage policies: anyone can view (bucket is public)
 CREATE POLICY "Anyone can view images"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'gallery-images');
+
+-- ===== AVATARS POLICIES =====
+CREATE POLICY "Users can upload own avatar"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'avatars'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Users can update own avatar"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'avatars'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Users can delete own avatar"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'avatars'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Anyone can view avatars"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'avatars');
 ```
 
 ## 4. Konfigurasi Authentication
@@ -155,7 +272,17 @@ Di **Authentication > Providers**, pastikan **Email** sudah enabled.
 
 > **Tip**: Untuk development, Anda bisa disable "Confirm email" di **Authentication > Settings > Email Auth** agar tidak perlu verifikasi email saat testing.
 
-### 4.2 Google OAuth
+### 4.2 Konfigurasi Reset Password (Lupa Password)
+
+Di **Authentication > URL Configuration**, pastikan **Redirect URLs** sudah mencakup:
+
+```
+http://localhost:3000/reset-password
+```
+
+> **Production**: Ganti dengan domain production Anda, misal: `https://yourdomain.com/reset-password`
+
+### 4.3 Google OAuth
 
 1. **Google Cloud Console**:
    - Buka [Google Cloud Console](https://console.cloud.google.com)
@@ -180,7 +307,9 @@ Di **Authentication > Providers**, pastikan **Email** sudah enabled.
 
 1. Di Supabase, buka **Authentication > URL Configuration**
 2. Set **Site URL** ke: `http://localhost:3000` (untuk development)
-3. Tambahkan di **Redirect URLs**: `http://localhost:3000/auth/callback`
+3. Tambahkan di **Redirect URLs**:
+   - `http://localhost:3000/auth/callback`
+   - `http://localhost:3000/reset-password`
 
 > **Production**: Ganti URL di atas dengan domain production Anda.
 
@@ -191,8 +320,10 @@ npm run dev
 ```
 
 Buka [http://localhost:3000](http://localhost:3000) dan coba:
-1. Register akun baru
+1. Register akun baru → cek nickname otomatis di tabel `profiles`
 2. Login
 3. Buat gallery
 4. Upload gambar
 5. Share gallery public
+6. Coba "Forgot Password" di halaman login
+7. Buka `/settings` untuk update nickname & foto profil
