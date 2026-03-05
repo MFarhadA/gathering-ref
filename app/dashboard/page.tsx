@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import GalleryCard from "../components/GalleryCard";
 import CreateGalleryModal from "../components/CreateGalleryModal";
+import DeleteModal from "../components/DeleteModal";
 import { Plus, FolderOpen } from "lucide-react";
 
 interface Gallery {
@@ -27,6 +28,8 @@ export default function DashboardPage() {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     const fetchGalleries = async () => {
         try {
@@ -59,20 +62,23 @@ export default function DashboardPage() {
         fetchProfile();
     }, []);
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this gallery? All images will be permanently removed.")) {
-            return;
-        }
-
+    const handleDeleteConfirm = async () => {
+        if (!deleteTargetId) return;
+        setDeleting(true);
         try {
-            const res = await fetch(`/api/galleries/${id}`, { method: "DELETE" });
+            const res = await fetch(`/api/galleries/${deleteTargetId}`, { method: "DELETE" });
             if (res.ok) {
-                setGalleries((prev) => prev.filter((g) => g.id !== id));
+                setGalleries((prev) => prev.filter((g) => g.id !== deleteTargetId));
+                setDeleteTargetId(null);
             }
         } catch (err) {
             console.error("Failed to delete gallery:", err);
+        } finally {
+            setDeleting(false);
         }
     };
+
+    const deleteTarget = galleries.find((g) => g.id === deleteTargetId);
 
     return (
         <>
@@ -139,7 +145,7 @@ export default function DashboardPage() {
                                     className="animate-slide-up"
                                     style={{ animationDelay: `${0.05 * i}s`, opacity: 0 }}
                                 >
-                                    <GalleryCard gallery={gallery} onDelete={handleDelete} />
+                                    <GalleryCard gallery={gallery} onDelete={(id) => setDeleteTargetId(id)} />
                                 </div>
                             ))}
                         </div>
@@ -151,6 +157,15 @@ export default function DashboardPage() {
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
                 onCreated={fetchGalleries}
+            />
+
+            <DeleteModal
+                isOpen={deleteTargetId !== null}
+                onClose={() => setDeleteTargetId(null)}
+                onConfirm={handleDeleteConfirm}
+                title="Delete Gallery"
+                description={`Are you sure you want to delete "${deleteTarget?.name ?? ""}"? All images will be permanently removed and cannot be recovered.`}
+                loading={deleting}
             />
         </>
     );

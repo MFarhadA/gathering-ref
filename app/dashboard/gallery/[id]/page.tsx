@@ -6,6 +6,8 @@ import Navbar from "../../../components/Navbar";
 import ImageGrid from "../../../components/ImageGrid";
 import ImageUploader from "../../../components/ImageUploader";
 import ShareModal from "../../../components/ShareModal";
+import DeleteModal from "../../../components/DeleteModal";
+import GallerySettingsModal from "../../../components/GallerySettingsModal";
 import {
     ArrowLeft,
     Globe,
@@ -43,11 +45,17 @@ export default function GalleryDetailPage({
     const { id } = use(params);
     const [gallery, setGallery] = useState<GalleryDetail | null>(null);
     const [loading, setLoading] = useState(true);
+
+    // Modals
     const [showShare, setShowShare] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
-    const [editName, setEditName] = useState("");
-    const [editPublic, setEditPublic] = useState(false);
-    const [saving, setSaving] = useState(false);
+    const [showDeleteGallery, setShowDeleteGallery] = useState(false);
+    const [deleteImageId, setDeleteImageId] = useState<string | null>(null);
+
+    // Loading states
+    const [deletingGallery, setDeletingGallery] = useState(false);
+    const [deletingImage, setDeletingImage] = useState(false);
+
     const router = useRouter();
 
     const fetchGallery = async () => {
@@ -56,8 +64,6 @@ export default function GalleryDetailPage({
             if (res.ok) {
                 const data = await res.json();
                 setGallery(data);
-                setEditName(data.name);
-                setEditPublic(data.is_public);
             } else {
                 router.push("/dashboard");
             }
@@ -72,53 +78,30 @@ export default function GalleryDetailPage({
         fetchGallery();
     }, [id]);
 
-    const handleDeleteImage = async (imageId: string) => {
-        if (!confirm("Delete this image?")) return;
-
+    const handleDeleteImage = async () => {
+        if (!deleteImageId) return;
+        setDeletingImage(true);
         try {
-            const res = await fetch(`/api/galleries/${id}/images/${imageId}`, {
+            const res = await fetch(`/api/galleries/${id}/images/${deleteImageId}`, {
                 method: "DELETE",
             });
             if (res.ok) {
                 setGallery((prev) =>
                     prev
-                        ? { ...prev, images: prev.images.filter((img) => img.id !== imageId) }
+                        ? { ...prev, images: prev.images.filter((img) => img.id !== deleteImageId) }
                         : null
                 );
+                setDeleteImageId(null);
             }
         } catch (err) {
             console.error("Failed to delete image:", err);
-        }
-    };
-
-    const handleSaveSettings = async () => {
-        setSaving(true);
-        try {
-            const res = await fetch(`/api/galleries/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: editName, is_public: editPublic }),
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setGallery((prev) => (prev ? { ...prev, ...data } : null));
-                setShowSettings(false);
-            }
-        } catch (err) {
-            console.error("Failed to update gallery:", err);
         } finally {
-            setSaving(false);
+            setDeletingImage(false);
         }
     };
 
     const handleDeleteGallery = async () => {
-        if (
-            !confirm(
-                "Are you sure you want to delete this gallery? All images will be permanently removed."
-            )
-        )
-            return;
-
+        setDeletingGallery(true);
         try {
             const res = await fetch(`/api/galleries/${id}`, { method: "DELETE" });
             if (res.ok) {
@@ -126,6 +109,8 @@ export default function GalleryDetailPage({
             }
         } catch (err) {
             console.error("Failed to delete gallery:", err);
+        } finally {
+            setDeletingGallery(false);
         }
     };
 
@@ -194,87 +179,21 @@ export default function GalleryDetailPage({
                                 </button>
                             )}
                             <button
-                                onClick={() => setShowSettings(!showSettings)}
+                                onClick={() => setShowSettings(true)}
                                 className="btn-ghost text-sm"
+                                title="Gallery settings"
                             >
                                 <Settings size={15} />
                             </button>
                             <button
-                                onClick={handleDeleteGallery}
+                                onClick={() => setShowDeleteGallery(true)}
                                 className="btn-ghost text-sm text-danger hover:bg-danger/10"
+                                title="Delete gallery"
                             >
                                 <Trash2 size={15} />
                             </button>
                         </div>
                     </div>
-
-                    {/* Settings panel */}
-                    {showSettings && (
-                        <div className="card mb-8 animate-fade-in-scale">
-                            <h3 className="font-semibold mb-4">Gallery Settings</h3>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm text-text-secondary mb-1">
-                                        Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={editName}
-                                        onChange={(e) => setEditName(e.target.value)}
-                                        className="input-field max-w-md"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                        Visibility
-                                    </label>
-                                    <div className="flex gap-3 max-w-md">
-                                        <button
-                                            type="button"
-                                            onClick={() => setEditPublic(false)}
-                                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${!editPublic
-                                                    ? "border-accent bg-accent/10 text-text-primary"
-                                                    : "border-border text-text-muted hover:border-border-light"
-                                                }`}
-                                        >
-                                            <Lock size={14} />
-                                            <span className="text-sm">Private</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setEditPublic(true)}
-                                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${editPublic
-                                                    ? "border-accent bg-accent/10 text-text-primary"
-                                                    : "border-border text-text-muted hover:border-border-light"
-                                                }`}
-                                        >
-                                            <Globe size={14} />
-                                            <span className="text-sm">Public</span>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2 pt-2">
-                                    <button
-                                        onClick={handleSaveSettings}
-                                        disabled={saving}
-                                        className="btn-primary text-sm"
-                                    >
-                                        {saving ? "Saving..." : "Save Changes"}
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setShowSettings(false);
-                                            setEditName(gallery.name);
-                                            setEditPublic(gallery.is_public);
-                                        }}
-                                        className="btn-ghost text-sm"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     {/* Upload Section */}
                     <div className="mb-8">
@@ -296,17 +215,51 @@ export default function GalleryDetailPage({
                         <ImageGrid
                             images={gallery.images}
                             canDelete
-                            onDelete={handleDeleteImage}
+                            onDelete={(imageId) => setDeleteImageId(imageId)}
                         />
                     )}
                 </div>
             </main>
 
+            {/* Share Modal */}
             <ShareModal
                 isOpen={showShare}
                 onClose={() => setShowShare(false)}
                 shareSlug={gallery.share_slug}
                 galleryName={gallery.name}
+            />
+
+            {/* Gallery Settings Modal */}
+            <GallerySettingsModal
+                isOpen={showSettings}
+                onClose={() => setShowSettings(false)}
+                galleryId={id}
+                initialName={gallery.name}
+                initialDescription={gallery.description}
+                initialPublic={gallery.is_public}
+                onSaved={(updated) => {
+                    setGallery((prev) => prev ? { ...prev, ...updated } : null);
+                }}
+            />
+
+            {/* Delete Gallery Modal */}
+            <DeleteModal
+                isOpen={showDeleteGallery}
+                onClose={() => setShowDeleteGallery(false)}
+                onConfirm={handleDeleteGallery}
+                title="Delete Gallery"
+                description={`Are you sure you want to delete "${gallery.name}"? All images will be permanently removed and cannot be recovered.`}
+                loading={deletingGallery}
+            />
+
+            {/* Delete Image Modal */}
+            <DeleteModal
+                isOpen={deleteImageId !== null}
+                onClose={() => setDeleteImageId(null)}
+                onConfirm={handleDeleteImage}
+                title="Delete Image"
+                description="Are you sure you want to delete this image? This action cannot be undone."
+                loading={deletingImage}
             />
         </>
     );

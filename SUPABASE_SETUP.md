@@ -83,61 +83,69 @@ CREATE INDEX idx_profiles_id ON profiles(id);
 
 Trigger ini akan otomatis membuat baris di tabel `profiles` dengan nickname acak setiap kali ada user baru yang mendaftar.
 
+> **Penting**: Fungsi nickname di-*embed* langsung di dalam trigger function dan menggunakan `SET search_path = public` agar tidak error.
+
+> **Jika sebelumnya sudah pernah menjalankan trigger lama**, drop dulu:
+> ```sql
+> DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+> DROP FUNCTION IF EXISTS handle_new_user();
+> DROP FUNCTION IF EXISTS generate_random_nickname();
+> ```
+
 ```sql
--- Fungsi untuk generate nickname acak
-CREATE OR REPLACE FUNCTION generate_random_nickname()
-RETURNS TEXT AS $$
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   adjectives TEXT[] := ARRAY[
     'swift','brave','calm','cool','dark','epic','fast','free',
     'gold','gray','keen','kind','lone','mild','neat','nice',
     'pure','rare','rich','safe','slim','soft','sure','true',
     'warm','wild','wise','bold','cozy','cute','fair','firm',
-    'glad','good','high','huge','idle','iron','jade','just',
-    'lazy','lean','live','lost','loud','love','lucky','mellow'
+    'glad','good','high','huge','idle','iron','jade','lazy',
+    'lean','live','loud','lucky','mellow','misty'
   ];
   nouns TEXT[] := ARRAY[
     'wolf','hawk','bear','lion','crow','deer','duck','eagle',
     'fish','frog','goat','hare','kite','lark','mole','moth',
     'newt','owl','puma','rook','seal','slug','swan','toad',
     'vole','wasp','wren','bison','camel','crane','finch','gecko',
-    'heron','hyena','ibis','jackal','koala','lemur','llama','moose',
+    'heron','hyena','koala','lemur','llama','moose',
     'panda','quail','raven','shark','snail','tiger','viper','zebra'
   ];
-  adj TEXT;
+  adj  TEXT;
   noun TEXT;
   suffix TEXT;
+  generated_nickname TEXT;
 BEGIN
-  adj  := adjectives[1 + floor(random() * array_length(adjectives, 1))::int];
-  noun := nouns[1 + floor(random() * array_length(nouns, 1))::int];
+  adj    := adjectives[1 + floor(random() * array_length(adjectives, 1))::int];
+  noun   := nouns[1 + floor(random() * array_length(nouns, 1))::int];
   suffix := lpad(floor(random() * 9999)::text, 4, '0');
-  RETURN adj || '_' || noun || suffix;
-END;
-$$ LANGUAGE plpgsql;
+  generated_nickname := adj || '_' || noun || suffix;
 
--- Trigger function
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
   INSERT INTO public.profiles (id, nickname)
   VALUES (
     NEW.id,
-    COALESCE(
-      NEW.raw_user_meta_data->>'full_name',
-      generate_random_nickname()
-    )
-  );
+    COALESCE(NEW.raw_user_meta_data->>'full_name', generated_nickname)
+  )
+  ON CONFLICT (id) DO NOTHING;
+
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Pasang trigger
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 ```
 
-> **Catatan**: Jika user daftar via Google OAuth, nickname akan diambil dari `full_name` Google. Jika daftar via email biasa, nickname akan digenerate secara acak.
+
+
+
 
 ### 3.5 Enable Row Level Security (RLS)
 
