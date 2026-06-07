@@ -1,0 +1,1272 @@
+{
+	"info": {
+		"_postman_id": "gathering-ref-whitebox",
+		"name": "Gathering Ref - White Box Testing (Cookie Auth)",
+		"description": "Postman collection for White Box Testing (Basis Path Testing). Uses cookie-based authentication. Set up: Login via browser, get cookies from DevTools, then use Postman Interceptor or manually add cookies.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000"
+		},
+		{
+			"key": "galleryId",
+			"value": "YOUR_GALLERY_ID_HERE"
+		},
+		{
+			"key": "imageId",
+			"value": "YOUR_IMAGE_ID_HERE"
+		},
+		{
+			"key": "sb-access-token",
+			"value": ""
+		},
+		{
+			"key": "sb-refresh-token",
+			"value": ""
+		}
+	],
+	"auth": {
+		"type": "noauth"
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"exec": [
+					"// Set cookies from environment variables for Supabase SSR auth",
+					"const accessToken = pm.collectionVariables.get('sb-access-token') || pm.environment.get('sb-access-token');",
+					"const refreshToken = pm.collectionVariables.get('sb-refresh-token') || pm.environment.get('sb-refresh-token');",
+					"",
+					"if (accessToken) {",
+					"    pm.request.headers.add({ key: 'Cookie', value: `sb-access-token=${accessToken}` });",
+					"}",
+					"if (refreshToken) {",
+					"    pm.request.headers.add({ key: 'Cookie', value: `sb-refresh-token=${refreshToken}` });",
+					"}"
+				]
+			}
+		}
+	],
+	"item": [
+		{
+			"name": "Prerequisites",
+			"item": [
+				{
+					"name": "Setup: Get Cookies from Browser",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Setup Instructions', function() {",
+									"    console.log('=== COOKIE-BASED AUTH SETUP ===');",
+									"    console.log('1. Login to your app in Chrome browser');",
+									"    console.log('2. Open DevTools (F12) > Application > Cookies');",
+									"    console.log('3. Find these cookies:');",
+									"    console.log('   - sb-access-token (starts with eyJ...)');",
+									"    console.log('   - sb-refresh-token');",
+									"    console.log('4. Copy the values and add them to your Postman environment');",
+									"    console.log('');",
+									"    console.log('OR use Postman Interceptor extension:');",
+									"    console.log('1. Install Postman Interceptor in Chrome');",
+									"    console.log('2. Enable interceptor in Postman');",
+									"    console.log('3. Browse to your app and login');",
+									"    console.log('4. Cookies will be captured automatically');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}",
+							"host": ["{{baseUrl}}"]
+						},
+						"description": "Setup instructions for cookie-based authentication"
+					}
+				}
+			]
+		},
+		{
+			"name": "SC1: GET /auth/callback",
+			"item": [
+				{
+					"name": "SC1-01: Path 1-20-43 (code tidak ada)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/auth/callback",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "callback"]
+						},
+						"description": "SC1-01: code = False (tidak ada). Expected: Redirect ke /login?error=auth"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC1-01: Redirects to login with error', function() {",
+									"    pm.response.to.have.status(307);",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC1-02: Path 1-20-23-40-43 (error saat tukar code)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/auth/callback?code=INVALID_CODE&next=/dashboard",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "callback"],
+							"query": [
+								{"key": "code", "value": "INVALID_CODE"},
+								{"key": "next", "value": "/dashboard"}
+							]
+						},
+						"description": "SC1-02: code exists but error during exchange"
+					}
+				},
+				{
+					"name": "SC1-03: Path 1-20-23-25-38 (user null)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/auth/callback?code=VALID_CODE&next=/dashboard",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "callback"],
+							"query": [
+								{"key": "code", "value": "VALID_CODE"},
+								{"key": "next", "value": "/dashboard"}
+							]
+						},
+						"description": "SC1-03: Valid code but user null - skip profile check"
+					}
+				},
+				{
+					"name": "SC1-04: Path 1-20-23-25-27-38 (existing profile)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/auth/callback?code=VALID_CODE&next=/dashboard",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "callback"],
+							"query": [
+								{"key": "code", "value": "VALID_CODE"},
+								{"key": "next", "value": "/dashboard"}
+							]
+						},
+						"description": "SC1-04: User exists, profile exists - skip insert"
+					}
+				},
+				{
+					"name": "SC1-05: Path 1-20-23-25-27-33-38 (create new profile)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/auth/callback?code=VALID_CODE&next=/dashboard",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "callback"],
+							"query": [
+								{"key": "code", "value": "VALID_CODE"},
+								{"key": "next", "value": "/dashboard"}
+							]
+						},
+						"description": "SC1-05: New user without profile - create with nickname"
+					}
+				}
+			]
+		},
+		{
+			"name": "SC2: POST /api/auth/logout",
+			"item": [
+				{
+					"name": "SC2-01: Path 1-2-3-4 (successful logout)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/logout",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "logout"]
+						},
+						"description": "SC2-01: Execute logout. Expected: { success: true } with HTTP 200"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC2-01: Logout returns success', function() {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"});",
+									"pm.test('SC2-01: Status is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "SC3: GET /api/galleries",
+			"item": [
+				{
+					"name": "SC3-01: Path 1-2-11 (Unauthorized)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries"]
+						},
+						"description": "SC3-01: No cookies (not authenticated). Expected: { error: 'Unauthorized' } with HTTP 401"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC3-01: Returns 401 Unauthorized', function() {",
+									"    pm.response.to.have.status(401);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.error).to.include('Unauthorized');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC3-02: Path 1-3-4-11 (Database error)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries"]
+						},
+						"description": "SC3-02: Authenticated, simulate database error. Expected: HTTP 500"
+					}
+				},
+				{
+					"name": "SC3-03: Path 1-3-5-10-11 (Empty galleries)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries"]
+						},
+						"description": "SC3-03: No galleries. Expected: Empty array [] with HTTP 200"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC3-03: Returns empty array for user with no galleries', function() {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC3-04: Path 1-3-5-6-9-5-10-11 (Gallery with no images)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries"]
+						},
+						"description": "SC3-04: Gallery with no images. Expected: image_count=0, cover_url=null"
+					}
+				},
+				{
+					"name": "SC3-05: Path 1-3-5-6-7-9-5-10-11 (Gallery with images but no cover)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries"]
+						},
+						"description": "SC3-05: imageCount>0 but coverImage not found"
+					}
+				},
+				{
+					"name": "SC3-06: Path 1-3-5-6-7-8-9-5-10-11 (Full success)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries"]
+						},
+						"description": "SC3-06: Full metadata with HTTP 200"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC3-06: Returns galleries with complete metadata', function() {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "SC4: POST /api/galleries",
+			"item": [
+				{
+					"name": "SC4-01: Path 1-2-11 (Unauthorized)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries"]
+						},
+						"body": {"mode": "raw", "raw": "{\n    \"name\": \"Test Gallery\",\n    \"is_public\": false\n}"},
+						"description": "SC4-01: Not authenticated. Expected: HTTP 401"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test('SC4-01: Returns 401 Unauthorized', function() { pm.response.to.have.status(401); });"]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC4-02: Path 1-3-4-11 (Name required)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries"]
+						},
+						"body": {"mode": "raw", "raw": "{\n    \"name\": \"\",\n    \"description\": \"Test\"\n}"},
+						"description": "SC4-02: name empty. Expected: HTTP 400 'Name is required'"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC4-02: Returns 400 when name is required', function() {",
+									"    pm.response.to.have.status(400);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.error).to.include('Name is required');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC4-03: Path 1-3-5-7-8-9-11 (Private gallery with DB error)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries"]
+						},
+						"body": {"mode": "raw", "raw": "{\n    \"name\": \"Private Gallery Test\",\n    \"is_public\": false\n}"},
+						"description": "SC4-03: is_public=false, DB error"
+					}
+				},
+				{
+					"name": "SC4-04: Path 1-3-5-7-8-10-11 (Private gallery success)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries"]
+						},
+						"body": {"mode": "raw", "raw": "{\n    \"name\": \"Private Gallery {{$timestamp}}\",\n    \"description\": \"This is a private gallery\",\n    \"is_public\": false\n}"},
+						"description": "SC4-04: is_public=false. Expected: HTTP 201, share_slug=null"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC4-04: Creates private gallery successfully', function() {",
+									"    pm.response.to.have.status(201);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData.is_public).to.eql(false);",
+									"    pm.expect(jsonData.share_slug).to.be.null;",
+									"});",
+									"// Save gallery ID for other tests",
+									"pm.test('SC4-04: Save galleryId to environment', function() {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.id) {",
+									"        pm.collectionVariables.set('galleryId', jsonData.id);",
+									"    }",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC4-05: Path 1-3-5-6-8-10-11 (Public gallery success)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries"]
+						},
+						"body": {"mode": "raw", "raw": "{\n    \"name\": \"Public Gallery {{$timestamp}}\",\n    \"description\": \"This is a public gallery\",\n    \"is_public\": true\n}"},
+						"description": "SC4-05: is_public=true. Expected: HTTP 201, share_slug with nanoid"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC4-05: Creates public gallery with slug', function() {",
+									"    pm.response.to.have.status(201);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.is_public).to.eql(true);",
+									"    pm.expect(jsonData.share_slug).to.not.be.null;",
+									"    pm.expect(jsonData.share_slug.length).to.eql(10);",
+									"});"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "SC5: GET /api/galleries/[id]",
+			"item": [
+				{
+					"name": "SC5-01: Path 1-2-8 (Unauthorized)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"description": "SC5-01: Not authenticated. Expected: HTTP 401"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test('SC5-01: Returns 401 Unauthorized', function() { pm.response.to.have.status(401); });"]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC5-02: Path 1-3-4-8 (Gallery not found)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/INVALID_GALLERY_ID",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "INVALID_GALLERY_ID"]
+						},
+						"description": "SC5-02: Gallery not found. Expected: HTTP 404"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC5-02: Returns 404 for non-existent gallery', function() {",
+									"    pm.response.to.have.status(404);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.error).to.include('Gallery not found');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC5-03: Path 1-3-5-7-8 (Gallery with no images)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"description": "SC5-03: No images. Expected: images: []"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC5-03: Gallery with no images returns empty array', function() {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('images');",
+									"    pm.expect(jsonData.images).to.be.an('array');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC5-04: Path 1-3-5-6-5-7-8 (Gallery with images)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"description": "SC5-04: Has images with URLs. Expected: HTTP 200"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC5-04: Gallery with images includes URLs', function() {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('images');",
+									"});"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "SC6: PATCH /api/galleries/[id]",
+			"item": [
+				{
+					"name": "SC6-01: Path 1-2-14 (Unauthorized)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"body": {"mode": "raw", "raw": "{\n    \"name\": \"Updated Name\"\n}"},
+						"description": "SC6-01: Not authenticated. Expected: HTTP 401"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test('SC6-01: Returns 401 Unauthorized', function() { pm.response.to.have.status(401); });"]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC6-02: Path 1-3-5-7-11-12-14 (Database error)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"body": {"mode": "raw", "raw": "{}"},
+						"description": "SC6-02: Database error"
+					}
+				},
+				{
+					"name": "SC6-03: Path 1-3-5-7-11-13-14 (Empty body)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"body": {"mode": "raw", "raw": "{}"},
+						"description": "SC6-03: Empty body. Expected: HTTP 200"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test('SC6-03: Empty body updates only timestamp', function() { pm.response.to.have.status(200); });"]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC6-04: Path 1-3-4-5-7-11-13-14 (Update name)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"body": {"mode": "raw", "raw": "{\n    \"name\": \"Updated Gallery Name {{$timestamp}}\"\n}"},
+						"description": "SC6-04: Update name only. Expected: HTTP 200"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC6-04: Updates gallery name', function() {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('name');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC6-05: Path 1-3-5-6-7-11-13-14 (Update description)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"body": {"mode": "raw", "raw": "{\n    \"description\": \"Updated description {{$timestamp}}\"\n}"},
+						"description": "SC6-05: Update description only"
+					}
+				},
+				{
+					"name": "SC6-06: Path 1-3-5-7-8-11-13-14 (Set is_public to false)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"body": {"mode": "raw", "raw": "{\n    \"is_public\": false\n}"},
+						"description": "SC6-06: Set to private. Expected: HTTP 200"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC6-06: Sets gallery to private', function() {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.is_public).to.eql(false);",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC6-07: Path 1-3-5-7-8-9-11-13-14 (Set is_public to true, existing slug)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"body": {"mode": "raw", "raw": "{\n    \"is_public\": true\n}"},
+						"description": "SC6-07: Set to public, keep existing slug"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC6-07: Sets gallery to public, keeps existing slug', function() {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.is_public).to.eql(true);",
+									"    pm.expect(jsonData.share_slug).to.not.be.null;",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC6-08: Path 1-3-5-7-8-9-10-11-13-14 (Set is_public to true, new slug)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"body": {"mode": "raw", "raw": "{\n    \"is_public\": true\n}"},
+						"description": "SC6-08: Set to public, generate new slug"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC6-08: Generates new slug for public gallery', function() {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.is_public).to.eql(true);",
+									"    pm.expect(jsonData.share_slug).to.not.be.null;",
+									"    pm.expect(jsonData.share_slug.length).to.eql(10);",
+									"});"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "SC7: DELETE /api/galleries/[id]",
+			"item": [
+				{
+					"name": "SC7-01: Path 1-2-8 (Unauthorized)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"description": "SC7-01: Not authenticated. Expected: HTTP 401"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test('SC7-01: Returns 401 Unauthorized', function() { pm.response.to.have.status(401); });"]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC7-02: Path 1-3-5-6-8 (No images, DB error)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"description": "SC7-02: Empty gallery, DB error"
+					}
+				},
+				{
+					"name": "SC7-03: Path 1-3-5-7-8 (Empty gallery delete)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"description": "SC7-03: Empty gallery success. Expected: { success: true } HTTP 200"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC7-03: Deletes empty gallery successfully', function() {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC7-04: Path 1-3-4-5-7-8 (Gallery with images delete)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}"]
+						},
+						"description": "SC7-04: Gallery with images. Expected: { success: true } HTTP 200"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC7-04: Deletes gallery with images successfully', function() {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"});"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "SC8: POST /api/galleries/[id]/images",
+			"item": [
+				{
+					"name": "SC8-01: Path 1-2-16 (Unauthorized)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}/images",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}", "images"]
+						},
+						"description": "SC8-01: Not authenticated. Expected: HTTP 401"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test('SC8-01: Returns 401 Unauthorized', function() { pm.response.to.have.status(401); });"]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC8-02: Path 1-3-4-16 (Gallery not found)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/INVALID_ID/images",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "INVALID_ID", "images"]
+						},
+						"description": "SC8-02: Gallery null. Expected: HTTP 404"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC8-02: Returns 404 for non-existent gallery', function() {",
+									"    pm.response.to.have.status(404);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.error).to.include('Gallery not found');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC8-03: Path 1-3-5-6-16 (No file provided)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}/images",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}", "images"]
+						},
+						"description": "SC8-03: file null. Expected: HTTP 400 'No file provided'"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC8-03: Returns 400 when no file provided', function() {",
+									"    pm.response.to.have.status(400);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.error).to.include('No file provided');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC8-04: Path 1-3-5-7-8-16 (File is not an image)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}/images",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}", "images"]
+						},
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "",
+									"description": "Select a non-image file (e.g., .pdf, .txt)"
+								}
+							]
+						},
+						"description": "SC8-04: file.type not image/*. Expected: HTTP 400 'File must be an image'"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC8-04: Returns 400 for non-image file', function() {",
+									"    pm.response.to.have.status(400);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.error).to.include('File must be an image');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC8-05: Path 1-3-5-7-9-10-16 (File too large)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}/images",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}", "images"]
+						},
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "",
+									"description": "Select an image file > 10MB"
+								}
+							]
+						},
+						"description": "SC8-05: file.size > 10MB. Expected: HTTP 400 'File too large'"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC8-05: Returns 400 for file over 10MB', function() {",
+									"    pm.response.to.have.status(400);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.error).to.include('File too large');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC8-06: Path 1-3-5-7-9-11-12-16 (Storage upload error)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}/images",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}", "images"]
+						},
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "",
+									"description": "Select a valid image file < 10MB"
+								}
+							]
+						},
+						"description": "SC8-06: uploadError. Expected: HTTP 500"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test('SC8-06: Handles storage upload error', function() { pm.response.to.have.status(500); });"]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC8-07: Path 1-3-5-7-9-11-13-14-16 (DB insert error with rollback)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}/images",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}", "images"]
+						},
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "",
+									"description": "Select a valid image file < 10MB"
+								}
+							]
+						},
+						"description": "SC8-07: insertError, rollback storage. Expected: HTTP 500"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test('SC8-07: Rolls back storage on DB error', function() { pm.response.to.have.status(500); });"]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC8-08: Path 1-3-5-7-9-11-13-15-16 (Full success)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}/images",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}", "images"]
+						},
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "",
+									"description": "Select a valid image file (.jpg, .png) < 10MB"
+								}
+							]
+						},
+						"description": "SC8-08: All validations pass. Expected: Image data with url, HTTP 201"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC8-08: Upload successful returns image data', function() {",
+									"    pm.response.to.have.status(201);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('url');",
+									"});",
+									"// Save image ID for other tests",
+									"pm.test('SC8-08: Save imageId to environment', function() {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.id) {",
+									"        pm.collectionVariables.set('imageId', jsonData.id);",
+									"    }",
+									"});"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "SC9: DELETE /api/galleries/[id]/images/[imageId]",
+			"item": [
+				{
+					"name": "SC9-01: Path 1-2-8 (Unauthorized)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}/images/{{imageId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}", "images", "{{imageId}}"]
+						},
+						"description": "SC9-01: Not authenticated. Expected: HTTP 401"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test('SC9-01: Returns 401 Unauthorized', function() { pm.response.to.have.status(401); });"]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC9-02: Path 1-3-4-8 (Image not found)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}/images/INVALID_IMAGE_ID",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}", "images", "INVALID_IMAGE_ID"]
+						},
+						"description": "SC9-02: image null. Expected: HTTP 404"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC9-02: Returns 404 for non-existent image', function() {",
+									"    pm.response.to.have.status(404);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.error).to.include('Image not found');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC9-03: Path 1-3-5-6-8 (Storage deleted, DB error)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}/images/{{imageId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}", "images", "{{imageId}}"]
+						},
+						"description": "SC9-03: DB delete error. Expected: HTTP 500"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test('SC9-03: Handles DB delete error', function() { pm.response.to.have.status(500); });"]
+							}
+						}
+					]
+				},
+				{
+					"name": "SC9-04: Path 1-3-5-7-8 (Full success)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/galleries/{{galleryId}}/images/{{imageId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "galleries", "{{galleryId}}", "images", "{{imageId}}"]
+						},
+						"description": "SC9-04: Success. Expected: { success: true } HTTP 200"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SC9-04: Deletes image successfully', function() {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"});"
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}
