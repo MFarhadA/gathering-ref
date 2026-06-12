@@ -7,7 +7,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env.test') });
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: '**/blackbox.spec.ts',
+  testMatch: '**/whitebox-*.spec.ts',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

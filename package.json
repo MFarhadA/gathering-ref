@@ -12,7 +12,9 @@
     "test:coverage": "jest --coverage",
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
-    "test:playwright:headed": "playwright test --headed"
+    "test:playwright:headed": "playwright test --headed",
+    "test:whitebox:playwright": "playwright test --config playwright-whitebox.config.ts",
+    "test:whitebox:jest": "jest --testPathPatterns=whitebox.*\\.test\\.ts$"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
